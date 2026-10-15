@@ -1,0 +1,7 @@
+interface:
+  display_name: "Canvas Coach"
+  short_description: "Your Canvas deadlines, study plan and grades"
+  default_prompt: "Use $canvas-coach to tell me what is due this week and what I should do today."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,170 @@
+{
+  "_readme": "What the collector reads from Canvas. To collect something new, add an entry here; no JavaScript changes are needed. 'keep' lists the fields to save (dotted names reach into nested objects and lists; null keeps everything). Path placeholders: {course_id}, {course_contexts}, {date:-21} (days from today). 'option' names a setting that must be on for the entry to be collected. 'inspect' ({flag: field}) has a text field looked at once for hidden text and reduced to a true/false flag; the text itself is never saved. 'expand' fetches a nested list separately when Canvas leaves it out. See references/extending.md.",
+  "courses": {
+    "path": "/api/v1/courses?enrollment_state=active&include[]=term&include[]=total_scores&per_page=100",
+    "keep": [
+      "id",
+      "name",
+      "course_code",
+      "workflow_state",
+      "time_zone",
+      "start_at",
+      "end_at",
+      "apply_assignment_group_weights",
+      "access_restricted_by_date",
+      "term.id",
+      "term.name",
+      "term.start_at",
+      "term.end_at",
+      "enrollments.type",
+      "enrollments.enrollment_state",
+      "hide_final_grades",
+      "enrollments.computed_current_score",
+      "enrollments.computed_current_grade",
+      "enrollments.computed_final_score",
+      "enrollments.computed_final_grade"
+    ]
+  },
+  "per_course": [
+    {
+      "name": "assignments",
+      "path": "/api/v1/courses/{course_id}/assignments?per_page=100&include[]=submission&order_by=due_at",
+      "keep": [
+        "id",
+        "name",
+        "due_at",
+        "lock_at",
+        "unlock_at",
+        "points_possible",
+        "html_url",
+        "assignment_group_id",
+        "submission_types",
+        "grading_type",
+        "omit_from_final_grade",
+        "locked_for_user",
+        "is_quiz_assignment",
+        "allowed_attempts",
+        "submission.workflow_state",
+        "submission.submitted_at",
+        "submission.score",
+        "submission.grade",
+        "submission.late",
+        "submission.missing",
+        "submission.excused",
+        "submission.attempt",
+        "submission.graded_at",
+        "is_quiz_lti_assignment",
+        "lock_info.context_module.id",
+        "submission.redo_request"
+      ],
+      "inspect": {
+        "hidden_text": "description"
+      }
+    },
+    {
+      "name": "assignment_groups",
+      "path": "/api/v1/courses/{course_id}/assignment_groups?per_page=100",
+      "keep": [
+        "id",
+        "name",
+        "group_weight",
+        "position",
+        "rules"
+      ]
+    },
+    {
+      "name": "modules",
+      "path": "/api/v1/courses/{course_id}/modules?per_page=50&include[]=items&include[]=content_details",
+      "expand": {
+        "field": "items",
+        "path": "/api/v1/courses/{course_id}/modules/{id}/items?per_page=100&include[]=content_details"
+      },
+      "keep": [
+        "id",
+        "name",
+        "position",
+        "unlock_at",
+        "state",
+        "items_count",
+        "items.id",
+        "items.title",
+        "items.type",
+        "items.position",
+        "items.indent",
+        "items.html_url",
+        "items.url",
+        "items.page_url",
+        "items.external_url",
+        "items.content_id",
+        "items.content_details.due_at",
+        "items.content_details.points_possible",
+        "items.content_details.locked_for_user",
+        "items.content_details.display_name"
+      ]
+    },
+    {
+      "name": "submissions",
+      "path": "/api/v1/courses/{course_id}/students/submissions?student_ids[]=self&include[]=submission_comments&include[]=rubric_assessment&per_page=100",
+      "keep": [
+        "assignment_id",
+        "score",
+        "grade",
+        "graded_at",
+        "submitted_at",
+        "workflow_state",
+        "late",
+        "missing",
+        "excused",
+        "points_deducted",
+        "posted_at",
+        "submission_comments.id",
+        "submission_comments.comment",
+        "submission_comments.author_name",
+        "submission_comments.author_id",
+        "submission_comments.created_at",
+        "rubric_assessment"
+      ]
+    }
+  ],
+  "global": [
+    {
+      "name": "announcements",
+      "path": "/api/v1/announcements?{course_contexts}&start_date={date:-21}&end_date={date:+1}&per_page=50",
+      "keep": [
+        "id",
+        "title",
+        "message",
+        "posted_at",
+        "context_code",
+        "html_url",
+        "user_name",
+        "read_state"
+      ]
+    },
+    {
+      "name": "conversations",
+      "option": "inbox",
+      "path": "/api/v1/conversations?scope=inbox&per_page=30",
+      "keep": [
+        "id",
+        "subject",
+        "workflow_state",
+        "last_message",
+        "last_message_at",
+        "message_count",
+        "context_code",
+        "context_name",
+        "participants.id",
+        "participants.name"
+      ]
+    },
+    {
+      "name": "profile",
+      "path": "/api/v1/users/self/profile",
+      "keep": [
+        "calendar.ics",
+        "time_zone"
+      ]
+    }
+  ]
+}
