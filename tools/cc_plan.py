@@ -1,9 +1,9 @@
 """The study plan: one must-do for each of the coming days, built from the deadline view.
 
 Rules, in order of priority:
-  1. Overdue work that is still open goes on today.
-  2. Graded work due today leads the day; of several, the one that counts for most, then the one
+  1. Graded work due today leads the day; of several, the one that counts for most, then the one
      that is open for the shortest time.
+  2. Overdue work that is still open goes on today, after what is due today.
   3. A must-do from an earlier day that is still open is carried over to today.
   4. Graded work goes on the day before it is due; two days before when it is heavy (its group is
      10% or more of the grade) or sits in a deadline clash. When that day is taken it moves to the
@@ -38,7 +38,8 @@ READABLE = ("Page", "File", "ExternalUrl", "ExternalTool")              # module
 # What is due today comes before what was carried over: today's deadline cannot wait, the carried
 # task usually can. (The other way round, a quiz open for one day was once listed under a
 # homework that was due three days later, and was missed.)
-PRIORITY = {"overdue": 1, "today": 2, "review1": 2, "carried": 3, "work": 4, "prep": 5, "review": 5, "material": 6,
+# Overdue work that is still open can be handed in tomorrow as well; what closes today cannot.
+PRIORITY = {"today": 1, "review1": 1, "overdue": 2, "carried": 3, "work": 4, "prep": 5, "review": 5, "material": 6,
             "check": 7, "optional": 8}
 LABEL = {"overdue": N("overdue"), "carried": N("carried over"), "work": N("graded work"), "today": N("due today"),
          "prep": N("prepare"), "review": N("exam review"), "review1": N("exam review"), "material": N("class material"),

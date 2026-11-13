@@ -253,8 +253,8 @@ put on days by `_assign`, at most one must-do per day:
 
 | Order | Task | Day | Can it move? |
 |---|---|---|---|
-| 1 | overdue and still open | today | no |
-| 2 | due today; the last review before an exam (of several, the heaviest, then the shortest opening) | that day | no |
+| 1 | due today; the last review before an exam (of several, the heaviest, then the shortest opening) | that day | no |
+| 2 | overdue and still open (it can still be handed in tomorrow; what is due today cannot) | today | no |
 | 3 | an earlier day's must-do, still open | today | no |
 | 4 | graded work | the day before it is due; two days before when its group is 10%+ or it is in a clash | to an earlier free day, not before it opens |
 | 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam | no |

@@ -134,8 +134,8 @@ within 48 hours of each other. Always read those blocks out before the list. Ite
 to by a few words of their course and title, or by key; `coach deadlines --all --keys` and
 `coach plan --keys` print the keys.
 
-How the plan decides, so you can explain it: (1) overdue work that is still open goes on today;
-(2) graded work due today leads the day, and of several the one that counts for most; (3) a must-do
+How the plan decides, so you can explain it: (1) graded work due today leads the day, and of several the one that counts for most; (2) overdue
+work that is still open goes on today, after what is due today; (3) a must-do
 left undone is carried over; (4) graded work goes on the day before it is due, two days before when
 its group is 10% or more of the grade or it sits in a clash, and moves to an earlier free day when
 its day is taken; (5) an exam gets a review session on each of the three days before it; (6) the
