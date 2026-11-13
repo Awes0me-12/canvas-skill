@@ -103,11 +103,13 @@ class PlanTests(Case):
     def test_one_must_do_a_day_by_the_rules(self):
         p = self.plan()
         self.assertEqual([d["label"] for d in p["days"]][::6], ["Mon Oct 12", "Sun Oct 18"])
-        # Rule 1: the overdue homework is today's must-do; what is due today and tomorrow stands beside it.
-        self.assertEqual(self.musts(p), ["101:1005", None, "303:3003", None, "101:1008", None, "202:2003"])
-        self.assertEqual(p["days"][0]["must"]["kind"], "overdue")
-        self.assertEqual(self.also(p, 0), ["101:1006", "202:2002"])
-        self.assertIn("due the same day, 5:00 PM", p["days"][0]["also"][0]["why"])
+        # Rule 1: what is due today is today's must-do. Rule 2: the overdue homework, which can still be
+        # handed in tomorrow, stands beside it, with what is due tomorrow.
+        self.assertEqual(self.musts(p), ["101:1006", None, "303:3003", None, "101:1008", None, "202:2003"])
+        self.assertEqual(p["days"][0]["must"]["kind"], "today")
+        self.assertIn("due the same day, 5:00 PM", p["days"][0]["must"]["why"])
+        self.assertEqual(self.also(p, 0), ["101:1005", "202:2002", "303:3003#work4"])
+        self.assertEqual(p["days"][0]["also"][0]["kind"], "overdue")
         # Rule 3: heavy work (its group is 30% of the grade) goes two days before its deadline.
         discussion = p["days"][2]["must"]
         self.assertEqual((discussion["kind"], discussion["moved"]), ("work", False))
@@ -122,13 +124,14 @@ class PlanTests(Case):
         self.assertEqual(self.plan(days=3)["ahead"]["key"], "101:1008")        # a shorter plan leaves the quiz for later
         text = cc_plan.render_text(p, keys=True)
         for needle in ("Study plan, Mon Oct 12 to Sun Oct 18, as of Mon Oct 12, 12:00 PM",
-                       "TODAY, Mon Oct 12", "  Must do: [overdue] CS 101 · HW 5 (late, still open) — was due Sat Oct 10, 12:00 PM "
-                       "and can still be handed in  [key 101:1005]", "  Also:    [due today] CS 101 · HW 6",
+                       "TODAY, Mon Oct 12", "  Must do: [due today] CS 101 · HW 6 — due the same day, 5:00 PM  [key 101:1006]",
+                       "  Also:    [overdue] CS 101 · HW 5 (late, still open) — was due Sat Oct 10, 12:00 PM "
+                       "and can still be handed in  [key 101:1005]",
                        "  Must do: nothing; a free day.", "  Due this day: MATH 202 · Problem Set 2 (12:00 PM)",
                        "No class times are saved for CS 101, MATH 202, WRIT 150", "No rest day is set."):
             self.assertIn(needle, text)
         page = cc_plan.render_html(p)
-        self.assertIn('<span class="tag must">must do</span><span class="tag">overdue</span>', page)
+        self.assertIn('<span class="tag must">must do</span><span class="tag">due today</span>', page)
         json.dumps(cc_deadlines.jsonable(p))
 
     def test_work_spreads_to_earlier_free_days_and_fixed_work_keeps_its_day(self):
@@ -170,23 +173,23 @@ class PlanTests(Case):
     def test_todays_must_do_holds_all_day_and_is_carried_over(self):
         first = self.plan()
         self.assertEqual(cc_state.load(self.cfg)["plan"]["days"],
-                         {"2026-10-12": {"must": "101:1005", "title": "CS 101 · HW 5 (late, still open)"}})
-        # A second, heavier overdue item turns up at noon: the morning's choice still leads.
+                         {"2026-10-12": {"must": "101:1006", "title": "CS 101 · HW 6"}})
+        # Something heavier that is also due today turns up at noon: the morning's choice still leads.
         courses = cc_model.course_table(make_payload(), self.cfg, NOW)
-        cc_state.add_manual(self.cfg, courses, "cs 101", "Late lab", NOW - timedelta(hours=1), weight=50)
+        cc_state.add_manual(self.cfg, courses, "cs 101", "Lab report", NOW + timedelta(hours=3), weight=50)
         again = self.plan()
-        self.assertEqual((self.musts(again)[0], self.also(again, 0)[0]), ("101:1005", "m:m1"))
+        self.assertEqual((self.musts(again)[0], self.also(again, 0)[0]), ("101:1006", "m:m1"))
         cc_state.remove_manual(self.cfg, "m1")
         # Done: the plan says so and offers the next thing.
-        cc_state.tick(self.cfg, "101:1005")
+        cc_state.tick(self.cfg, "101:1006")
         done = self.plan()
-        self.assertEqual((done["days"][0]["must_done"], self.musts(done)[0]), ("CS 101 · HW 5 (late, still open)", "101:1006"))
+        self.assertEqual((done["days"][0]["must_done"], self.musts(done)[0]), ("CS 101 · HW 6", "101:1005"))
         text = cc_plan.render_text(done)
-        self.assertIn("  Must-do done: CS 101 · HW 5 (late, still open)", text)
-        self.assertIn("  Next:    [due today] CS 101 · HW 6", text)
+        self.assertIn("  Must-do done: CS 101 · HW 6", text)
+        self.assertIn("  Next:    [overdue] CS 101 · HW 5 (late, still open)", text)
         # Wednesday's must-do (the discussion) is left undone: on Thursday it is carried over.
         wednesday, thursday = NOW + timedelta(days=2), NOW + timedelta(days=3)
-        for key in ("101:1006", "202:2002"):                    # handed in meanwhile, so nothing is overdue by then
+        for key in ("101:1005", "202:2002"):                    # handed in meanwhile, so nothing is overdue by then
             cc_state.tick(self.cfg, key)
         self.assertEqual(self.musts(self.plan(at=wednesday))[0], "303:3003")
         carried = self.plan(at=thursday)["days"][0]["must"]
@@ -195,6 +198,84 @@ class PlanTests(Case):
         self.assertNotIn("m:", json.dumps(first["days"][0]["must"]["key"]))
         must = cc_plan.todays_must(make_payload(), self.cfg, at=thursday)
         self.assertEqual((must["key"], must["short"]), ("303:3003", "Discussion: week 7 (WRIT 150)"))
+
+    def _with_quiz(self, **first):
+        """One assignment (id 1) plus a quiz (id 2) that is open only on Thursday, 8:00 to 17:00."""
+        payload, row = self.one(**first)
+        quiz = dict(row, id=2, name="Quiz", html_url=f"{HOST}/courses/101/assignments/2", is_quiz_assignment=True,
+                    unlock_at=sample_data.iso(NOW + timedelta(days=3, hours=-4)),
+                    due_at=sample_data.iso(NOW + timedelta(days=3, hours=5)))
+        payload["data"]["101"]["assignments"].append(quiz)
+        return Case.resign(payload)
+
+    def test_work_due_today_leads_over_what_is_carried_over(self):
+        # Homework due Friday is Wednesday's must-do and is left undone. On Thursday a quiz opens and
+        # closes the same day: the quiz leads, and the homework stands beside it as carried over.
+        wednesday, thursday = NOW + timedelta(days=2), NOW + timedelta(days=3)
+        payload = self._with_quiz(due=timedelta(days=4))
+        self.assertEqual(self.musts(self.plan(payload, at=wednesday))[0], "101:1")
+        day = self.plan(payload, at=thursday)["days"][0]
+        self.assertEqual((day["must"]["key"], day["must"]["kind"]), ("101:2", "today"))
+        self.assertEqual([(t["key"], t["kind"]) for t in day["also"]], [("101:1", "carried")])
+        self.assertTrue(day["also"][0]["why"].startswith("carried over from Wed Oct 14; due the next day"))
+        must = cc_plan.todays_must(payload, self.cfg, at=thursday)
+        self.assertEqual((must["key"], must["short"]), ("101:2", "Quiz (CS 101)"))
+        self.assertEqual(self.musts(self.plan(payload, at=thursday + timedelta(hours=2)))[0], "101:2", "holds all day")
+
+    def test_of_two_things_due_today_the_heavier_leads_even_when_the_other_was_carried_over(self):
+        # A one-point survey due Thursday 12:15 is Wednesday's must-do and is left undone. The quiz
+        # that is only open on Thursday is worth ten times as much, so it leads on Thursday.
+        wednesday, thursday = NOW + timedelta(days=2), NOW + timedelta(days=3)
+        payload = self._with_quiz(due=timedelta(days=3, minutes=15))
+        payload["data"]["101"]["assignments"][0]["points_possible"] = 1
+        payload = Case.resign(payload)
+        self.assertEqual(self.musts(self.plan(payload, at=wednesday))[0], "101:1")
+        day = self.plan(payload, at=thursday)["days"][0]
+        self.assertEqual(day["must"]["key"], "101:2")
+        self.assertEqual([t["key"] for t in day["also"]], ["101:1"])
+        self.assertTrue(day["also"][0]["why"].startswith("carried over from Wed Oct 14; due the same day"))
+
+    def test_big_work_gets_two_earlier_sessions(self):
+        keys = lambda p: {t["key"]: d["date"] for d in p["days"] for t in [d["must"]] + d["also"] if t}
+        # Half the points of a group that is 30% of the grade (so 15% by itself), due Wednesday next week.
+        payload, row = self.one(due=timedelta(days=9))
+        row["points_possible"] = 40
+        p = self.plan(payload, days=10)
+        self.assertEqual(keys(p), {"101:1#work7": "2026-10-14", "101:1#work4": "2026-10-17", "101:1": "2026-10-19"})
+        early = p["days"][2]["must"]
+        self.assertEqual((early["title"], early["kind"]), ("Work on Probe", "work"))
+        self.assertEqual(early["why"], "due in 7 days (Wed Oct 21, 12:00 PM); it is worth 40 pts, Homework: 30% of grade, "
+                                       "8 items so far, so it gets more than one day")
+        self.assertIn("  Must do: [graded work] CS 101 · Work on Probe — due in 7 days", cc_plan.render_text(p))
+        # A session is ticked off by its own key; the work itself stays on the plan.
+        cc_state.tick(self.cfg, "101:1#work7")
+        self.assertEqual(sorted(keys(self.plan(payload, days=10))), ["101:1", "101:1#work4"])
+        # It cannot be worked on before it opens: sessions before that day are left out.
+        cc_state.tick(self.cfg, "101:1#work7", on=False)
+        row["unlock_at"] = sample_data.iso(NOW + timedelta(days=4))
+        self.assertEqual(sorted(keys(self.plan(Case.resign(payload), days=10))), ["101:1", "101:1#work4"])
+        # Where Canvas gives no weights, a share of the points posted so far is only a guess: one day, as before.
+        payload, row = self.one(due=timedelta(days=9), cid="202")
+        self.assertEqual(list(keys(self.plan(payload, days=10))), ["202:1"])
+        # Nor does small work get them: ten points of that same group are under 5% of the grade.
+        payload, row = self.one(due=timedelta(days=9))
+        self.assertEqual(list(keys(self.plan(payload, days=10))), ["101:1"])
+
+    def test_a_heavy_exam_is_reviewed_over_the_week_before_it(self):
+        keys = lambda p: {t["key"]: d["date"] for d in p["days"] for t in [d["must"]] + d["also"] if t}
+        # The in-class midterm on Wed Oct 21 is 20% of the grade: sessions 7, 5 and 3 days ahead are in view.
+        planned = keys(self.plan())
+        self.assertEqual({k: v for k, v in planned.items() if k.startswith("101:1011")},
+                         {"101:1011#review7": "2026-10-14", "101:1011#review5": "2026-10-16", "101:1011#review3": "2026-10-18"})
+        # An exam the student added without saying what it is worth keeps the three days before it.
+        courses = cc_model.course_table(make_payload(), self.cfg, NOW)
+        cc_state.add_manual(self.cfg, courses, "math 202", "Oral exam", NOW + timedelta(days=6), kind="exam")
+        self.assertEqual(sorted(k for k in keys(self.plan()) if k.startswith("m:m1")),
+                         ["m:m1#review1", "m:m1#review2", "m:m1#review3"])
+        # Once they say it is a quarter of the grade, the sessions five days ahead and today (seven) join in.
+        cc_state.edit_manual(self.cfg, "m1", weight=25)
+        self.assertEqual(sorted(k for k in keys(self.plan()) if k.startswith("m:m1")),
+                         ["m:m1#review1", "m:m1#review2", "m:m1#review3", "m:m1#review5"])
 
     def test_module_reading_goes_before_the_first_class_of_the_week(self):
         self.cfg["class_times"] = {"101": [{"days": ["wed", "fri"], "time": "10:00", "kind": "lecture"},
@@ -237,8 +318,11 @@ class PlanTests(Case):
         self.assertNotIn("101:1011#review3", keys(self.plan()))
         self.assertFalse(self.item(self.view(), "101:1011")["done"])
         self.assertIn("101:1011#review2", keys(self.plan(at=NOW + timedelta(days=1))))
-        text = cc_plan.render_text(self.plan(), keys=True)
+        heavier = make_payload()                                   # an undated reflection that counts for something
+        next(a for a in heavier["data"]["101"]["assignments"] if a["id"] == 1014)["points_possible"] = 50
+        text = cc_plan.render_text(self.plan(heavier), keys=True)
         self.assertIn("1 open item(s) have no date on Canvas, so they are not on this plan: CS 101 · Reflection (no date).", text)
+        self.assertNotIn("have no date on Canvas", cc_plan.render_text(self.plan()), "a placeholder under 1% is not named")
         run_cli(self.env, "setup", "--host", HOST)
         cc_store.save_snapshot(self.cfg, make_payload())
         code, out = run_cli(self.env, "done", "101:1011#review2")
@@ -263,7 +347,7 @@ class PlanTests(Case):
                      {"plan": {"days": {"2026-10-11": "x", "yesterday": {"must": "303:3003"}, "2026-10-12": {"must": 5}},
                                "rest": {"2026-W42": 7}}}):
             cc_state.save(self.cfg, junk)
-            self.assertEqual(self.musts(self.plan())[0], "101:1005", junk)
+            self.assertEqual(self.musts(self.plan())[0], "101:1006", junk)
         self.cfg.update(class_times={"101": [{"days": "wed", "time": "10"}, {"days": ["wed"], "time": "ten:00"}, 5]},
                         rest_days=["someday", "sat"], plan_days=1)
         one = self.plan()
@@ -303,7 +387,7 @@ class PlanTests(Case):
         self.assertEqual(run_cli(self.env, "classes", "set", "cs 101")[0], 1)
         code, out = run_cli(self.env, "plan", "--offline", "--keys")
         self.assertEqual(code, 0, out)
-        for needle in ("TODAY, Mon Oct 12", "  Classes: CS 101 10:00 AM", "Sat Oct 17 — rest day", "[key 101:1005]", "Study Plan.html"):
+        for needle in ("TODAY, Mon Oct 12", "  Classes: CS 101 10:00 AM", "Sat Oct 17 — rest day", "[key 101:1006]", "Study Plan.html"):
             self.assertIn(needle, out)
         self.assertTrue((Path(self.env["CANVAS_COACH_ROOT"]) / "Study Plan.html").exists())
         plan = json.loads(run_cli(self.env, "plan", "--offline", "--json", "--rest", "friday")[1])
@@ -311,7 +395,7 @@ class PlanTests(Case):
         self.assertEqual(run_cli(self.env, "plan", "--offline", "--rest", "whenever")[0], 1)
         self.assertEqual(run_cli(self.env, "plan", "--offline", "--days", "40")[0], 1)
         code, out = run_cli(self.env, "brief", "--offline")
-        self.assertIn("Must-do today: CS 101 · HW 5 (late, still open)\n  Why: was due Sat Oct 10, 12:00 PM and can still be handed in", out)
+        self.assertIn("Must-do today: CS 101 · HW 6\n  Why: due the same day, 5:00 PM", out)
         code, out = run_cli(self.env, "done", "mod:101:504")
         self.assertEqual(code, 0, out)
         self.assertIn("mod:101:504", cc_state.load(self.cfg)["done"])
@@ -323,13 +407,14 @@ class PlanTests(Case):
         brief = cc_brief.build(payload, self.cfg, at=NOW)
         brief["must"] = cc_plan.todays_must(payload, self.cfg, brief["view"], at=NOW)
         title, message = cc_brief.notification(brief)
-        self.assertTrue(message.startswith("Must-do today: HW 5 (late, still open) (CS 101); "), message)
-        self.assertEqual(message.count("HW 5"), 1, "the must-do is not repeated in the list after it")
+        self.assertTrue(message.startswith("Must-do today: HW 6 (CS 101); HW 5 (late, still open) (CS 101) "), message)
+        self.assertEqual(message.count("HW 6"), 1, "the must-do is not repeated in the list after it")
         quiet = make_payload()                                    # only a rest of the term with nothing near
         quiet["data"] = {"303": quiet["data"]["303"]}
         quiet["courses"] = [c for c in quiet["courses"] if c["id"] == 303]
         quiet["errors"] = []
         b = cc_brief.build(Case.resign(quiet), self.cfg, at=NOW, hours=24)
+        cc_state.tick(self.cfg, "303:3003#work4")                # today's early session on the discussion is done
         b["must"] = cc_plan.todays_must(quiet, self.cfg, b["view"], at=NOW)
         self.assertIsNone(b["must"])
         self.assertIsNone(cc_brief.notification(b))

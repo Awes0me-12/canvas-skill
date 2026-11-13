@@ -15,6 +15,7 @@ import cc_time
 from cc_lang import N, T, plural
 
 DONE_DAYS = 7      # keep finished work on the page this long after its deadline
+SMALL_PERCENT = 1           # an undated item worth this share of the grade or less is counted, not listed
 MISSED_DAYS = 14   # keep closed, never-submitted work this long
 STALE_HOURS = 24
 
@@ -177,6 +178,10 @@ def build_view(payload, cfg, at=None, days=None, show_all=False):
     for key in ("overdue", "week", "later"):
         buckets[key].sort(key=lambda i: (i["deadline"], i["course"], i["name"]))
     buckets["undated"].sort(key=lambda i: (i["course"], i["name"]))
+    # Placeholders without a date that hardly count (an attendance column per class) would bury the
+    # few undated items that matter, so they are counted in one note instead of listed.
+    small_undated = [] if show_all else [i for i in buckets["undated"] if _small_placeholder(i)]
+    buckets["undated"] = [i for i in buckets["undated"] if i not in small_undated]
     buckets["done"].sort(key=lambda i: (i["deadline"] or far, i["course"]), reverse=True)
     for group in buckets.values():
         for it in group:
@@ -215,6 +220,10 @@ def build_view(payload, cfg, at=None, days=None, show_all=False):
                        days=payload["slim"].get("days")))
     if hidden_old:
         notes_hidden.append(T("{n} older unsubmitted item(s) are hidden. Add --all to see them.", n=hidden_old))
+    if small_undated:
+        notes_hidden.append(T("{n} item(s) without a date that count for {percent}% of the grade or less each (attendance "
+                              "and the like) are not listed. Add --all to see them.", n=len(small_undated),
+                              percent=SMALL_PERCENT))
     for c in courses:
         if c["hidden"] and c["hidden_code"] != "ignored" and c["name"]:
             notes_hidden.append(T("{course} is hidden because {why}. To show it: coach.py config include {id}",
@@ -313,6 +322,13 @@ def clash_lines(view, limit=None):
     if limit and len(view["clashes"]) > limit:
         out.append(T("  ... and {n} more (coach.py deadlines)", n=len(view["clashes"]) - limit))
     return out
+
+
+def _small_placeholder(it):
+    """An undated Canvas item that is worth next to nothing by itself, or nothing at all."""
+    if it["manual"] or it["own_due"] or it["note"] or it["hidden_text"] or not it["confirmed"]:
+        return False                        # what the student touched, or should look at, always stays in view
+    return not it["points"] or (it["weight"] is not None and it["weight"] <= SMALL_PERCENT)
 
 
 def render_text(view, banner="", keys=False, changes=()):

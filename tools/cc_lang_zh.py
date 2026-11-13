@@ -776,4 +776,41 @@ TABLE = {
     "{n} open item(s) have no date on Canvas, so they are not on this plan: {names}{more}. "
     "If you know a date: coach.py edit <key> --due \"2026-10-20 17:00\"":
         "有{n}项未完成的作业在 Canvas 上没有日期，所以不在这份计划里：{names}{more}。如果你知道日期：coach.py edit <key> --due \"2026-10-20 17:00\"",
+    "{n} item(s) without a date that count for {percent}% of the grade or less each (attendance and the like) "
+    "are not listed. Add --all to see them.":
+        "有{n}个没有日期、单项不超过总成绩{percent}%的项目（考勤之类）没有列出。加上 --all 可以看到。",
+    "Work on {name}": "推进：{name}",
+    "due in {n} days ({when}); it is worth {worth}, so it gets more than one day":
+        "{n}天后截止（{when}）；它分量较重（{worth}），所以不止安排一天",
+
+    # ---- cc_alerts.py and the alerts command in cc_cmd_calendar.py
+    "Phone alerts need a Mac: they are written through its Calendar app.": "手机提醒需要 Mac：它是通过 Mac 的“日历”App 写入的。",
+    "The Calendar app did not answer. If macOS is asking for permission, allow it and try again.":
+        "“日历”App 没有回应。如果 macOS 正在询问权限，请点允许后再试一次。",
+    "The Calendar app could not be reached ({why}).": "无法连接“日历”App（{why}）。",
+    "macOS has not allowed this to use the Calendar app. Allow it under System Settings > Privacy & Security > "
+    "Automation, then run: coach.py alerts on":
+        "macOS 还没有允许它使用“日历”App。请在 系统设置 > 隐私与安全性 > 自动化 里允许，然后运行：coach.py alerts on",
+    "The Calendar app refused ({why}).": "“日历”App 拒绝了操作（{why}）。",
+    "the phone alerts could not be updated: {why}": "手机提醒没能更新：{why}",
+    "Phone alerts: {added} added, {updated} changed, {removed} removed, {kept} as before.":
+        "手机提醒：新增{added}个，更新{updated}个，移除{removed}个，{kept}个不变。",
+    "{start} to {end}": "{start} 至 {end}",
+    "no alarm left, it is too close": "时间太近，已经没有可设的闹钟",
+    "{title}: {span}; rings {alarms}": "{title}：{span}；提醒时间 {alarms}",
+    "Phone alerts are off; {n} event(s) were removed from the calendar \"{name}\". The calendar itself is left for "
+    "you to delete.": "手机提醒已关闭；已从日历“{name}”里移除{n}个事件。这个日历本身留给你自己删除。",
+    "Phone alerts are off.": "手机提醒目前是关闭的。",
+    "Switch them on with: coach.py alerts on": "开启方法：coach.py alerts on",
+    "Phone alerts are on. They are events in the calendar \"{name}\" and are brought up to date with every briefing.":
+        "手机提醒已开启。它们是日历“{name}”里的事件，每次简报时都会更新。",
+    "Check once in the Calendar app that \"{name}\" is listed under iCloud (not \"On My Mac\"): only then does it "
+    "reach your phone.": "请在“日历”App 里确认一次：“{name}”列在 iCloud 下面（而不是“我的 Mac”），这样才会同步到手机。",
+    "If it is under \"On My Mac\": delete that calendar, make a new one with exactly the same name under "
+    "iCloud (File > New Calendar > iCloud), then run this command again.":
+        "如果它在“我的 Mac”下面：删掉这个日历，在 iCloud 下新建一个名字完全相同的日历（文件 > 新建日历 > iCloud），然后再运行一次这条命令。",
+    "Phone alerts: nothing to change.": "手机提醒：没有需要改动的。",
+    "Work that rings in the next {days} days (exams, and work worth {percent}% of the grade or more):":
+        "未来{days}天内会提醒的作业（考试，以及单项占总成绩{percent}%或以上的作业）：",
+    "nothing": "无",
 }

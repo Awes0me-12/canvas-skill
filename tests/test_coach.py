@@ -336,10 +336,17 @@ class ViewTests(Case):
         self.assertEqual(self.keys(v, "week"),
                          ["101:1006", "202:2002", "303:3002", "101:1007", "303:3003", "101:1008"])
         self.assertEqual(self.keys(v, "later"), ["202:2003", "101:1011", "101:1010", "101:1012", "202:2004"])
-        self.assertEqual(self.keys(v, "undated"), ["101:1014"])
+        # The undated reflection is under 1% of the grade: it is counted in a note, and listed with --all.
+        self.assertEqual(self.keys(v, "undated"), [])
+        self.assertIn("1 item(s) without a date that count for 1% of the grade or less each (attendance and the like) "
+                      "are not listed. Add --all to see them.", v["notes"])
+        self.assertIn("101:1014", self.keys(self.view(show_all=True), "undated"))
+        heavier = make_payload()
+        next(a for a in heavier["data"]["101"]["assignments"] if a["id"] == 1014)["points_possible"] = 50
+        self.assertEqual(self.keys(self.view(heavier), "undated"), ["101:1014"], "undated work that counts stays listed")
         self.assertEqual(self.keys(v, "done"), [])
         self.assertEqual(v["counts"], {"overdue": 3, "check_elsewhere": 0, "week_todo": 4, "week_done": 2,
-                                       "later": 5, "undated": 1, "clashes": 3})
+                                       "later": 5, "undated": 0, "clashes": 3})
         self.assertEqual(v["next"], "101:1006")
         self.assertFalse(v["stale"])
 
@@ -354,7 +361,7 @@ class ViewTests(Case):
         self.assertEqual(self.item(v, "101:1011")["status_text"], "no upload (in class or on paper)")
         self.assertIn("opens Sat Oct 17, 12:00 PM", self.item(v, "101:1010")["notes"])
         self.assertIn("quiz", self.item(v, "101:1008")["notes"])
-        self.assertIn("locked until earlier module items are finished", self.item(v, "101:1014")["notes"])
+        self.assertIn("locked until earlier module items are finished", self.item(self.view(show_all=True), "101:1014")["notes"])
         self.assertEqual(self.item(v, "101:1004")["status_text"], "missed, now closed")
 
     def test_available_until_is_a_deadline(self):
@@ -454,7 +461,8 @@ class ViewTests(Case):
 
     def test_text_output(self):
         text = cc_deadlines.render_text(self.view(), banner="Could not refresh.")
-        for needle in ("OVERDUE (3)", "NEXT 7 DAYS (6)", "LATER (5)", "NO DUE DATE (1)", "WARNING: Could not refresh.",
+        for needle in ("OVERDUE (3)", "NEXT 7 DAYS (6)", "LATER (5)", "Note: 1 item(s) without a date that count for 1% of the grade or less each",
+                       "WARNING: Could not refresh.",
                        "[!] CS 101 · HW 5", "[✓] WRIT 150 · Essay 2", "Data collected Mon Oct 12, 12:00 PM"):
             self.assertIn(needle, text)
 

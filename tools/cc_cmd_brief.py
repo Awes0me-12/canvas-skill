@@ -67,8 +67,8 @@ def _brief(cfg, args):
         brief["must"] = cc_plan.todays_must(payload, cfg, brief["view"])
     except Exception:
         brief["must"] = None
-    # The briefing never marks changes as seen: the student has not looked at the full list yet.
-    changes, since = cc_changes.since_baseline(cfg, payload, advance=False)
+    # Each change that calls for doing something is reported once; `coach.py changes` keeps the full list.
+    changes, since = cc_changes.since_briefing(cfg, payload)
     say(cc_brief.render_text(brief, cc_changes.render_text(changes, since, limit=8, more="coach.py changes"), banner))
     if args.notify:
         note = cc_brief.notification(brief, changes, banner, logged_out=code == NEED_LOGIN)
@@ -77,6 +77,14 @@ def _brief(cfg, args):
             say(T("Notification shown.") if shown else T("Notification could not be shown on this computer."))
         else:
             say(T("Nothing urgent, so no notification was shown."))
+    if cfg.get("alerts"):                    # keep the phone's alarms in step; a calendar problem must not fail the briefing
+        try:
+            import cc_alerts
+            line = cc_alerts.summary(cc_alerts.sync(cfg, brief["view"]))
+            if line:
+                say(line)
+        except Exception:
+            pass
     return code
 
 

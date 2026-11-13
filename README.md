@@ -15,6 +15,9 @@ It can tell you:
 - what is in the course materials, saved as text you and your assistant can read
 - whether an assignment's instructions hide text a reader cannot see (it is marked, never followed)
 
+If you switch it on, exams and heavy work also go into a calendar of their own ("Canvas Coach") as
+events with alarms, so your phone rings when a quiz opens and three hours before it closes.
+
 It also keeps what you tell it that Canvas does not know: exams and deadlines from a syllabus, your
 own date for work Canvas shows without one, notes, and questions you want to ask a TA.
 
@@ -108,6 +111,7 @@ Add `--help` after `coach.py` to see every command.
 | Collected data (one file per collection), and what you told it (ticks, own deadlines, questions, the plan's record) | `~/CanvasCoach/.data/` |
 | Saved Canvas login (encrypted) | `~/.agent-browser/sessions/canvas-coach-*` |
 | The daily briefing job, only if you switched it on | `~/Library/LaunchAgents/com.canvas-coach.brief.plist` |
+| Phone alerts, only if you switched them on | events in the calendar "Canvas Coach" in the Calendar app |
 
 Nothing personal is in this folder or in the repository: your settings, login and Canvas data live
 in the places above.
@@ -124,6 +128,9 @@ in the places above.
   only the subject and first line of each conversation.
 - Files are downloaded only when you say so. Nothing runs in the background unless you ask for the
   daily briefing.
+- Nothing is written to your calendar unless you switch on phone alerts (`coach.py alerts on`). Then
+  it only adds, changes and deletes its own events in the calendar "Canvas Coach"; your calendar
+  account carries them to your phone. `coach.py alerts off` deletes them.
 - Assignment instructions are looked at once for hidden text while collecting; only a yes or no is
   kept. The full text is saved only when you ask to see an assignment.
 - Whatever your AI assistant reads passes through that AI service, as with anything else you ask it.
@@ -132,10 +139,15 @@ in the places above.
 
 These are **Terminal** commands. Do them in this order.
 
-1. Switch off the daily briefing (harmless if you never switched it on), then delete the saved login:
+1. Switch off the daily briefing and the phone alerts (harmless if you never switched them on), then
+   delete the saved login:
 
 ```bash
 python3 ~/canvas-coach/tools/coach.py schedule remove
+```
+
+```bash
+python3 ~/canvas-coach/tools/coach.py alerts off
 ```
 
 ```bash

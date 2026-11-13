@@ -66,7 +66,7 @@ def main():
         check("deadlines --force --json", code == 0, out)
         view = json.loads(out)
         check("counts", view["counts"] == {"overdue": 3, "check_elsewhere": 0, "week_todo": 4, "week_done": 2,
-                                           "later": 5, "undated": 1, "clashes": 3}, json.dumps(view["counts"]))
+                                           "later": 5, "undated": 0, "clashes": 3}, json.dumps(view["counts"]))
         hw6 = next(i for sec in view["sections"] for i in sec["items"] if i["key"] == "101:1006")
         check("hidden text in instructions is flagged, and the text itself is not kept",
               hw6["hidden_text"] is True and "giraffe" not in Path(cc_store.latest_snapshot(cc_store.load_config())[1]).read_text(),

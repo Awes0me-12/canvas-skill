@@ -1,6 +1,8 @@
-"""Commands: export (write the deadlines as a calendar file) and feed (check Canvas's own calendar link)."""
+"""Commands: export (write the deadlines as a calendar file), feed (check Canvas's own calendar link)
+and alerts (the deadlines that matter as calendar events with alarms, so the phone rings too)."""
 import json
 
+import cc_alerts
 import cc_deadlines
 import cc_ical
 import cc_store
@@ -57,3 +59,59 @@ def cmd_feed(args):
         say(*notes or [T("The Canvas calendar agrees with the last collection.")])
         say(T("Compared with the collection of {when}.", when=data_age(payload, cfg)))
     return OK
+
+
+@command("alerts", "The deadlines that matter as calendar events with alarms, so your phone rings too: "
+                   "alerts show | on | off | sync",
+         arg("action", nargs="?", default="show", choices=["show", "on", "off", "sync"]),
+         *REFRESH_ARGS)
+def cmd_alerts(args):
+    cfg = cc_store.load_config()
+    if args.action == "off":
+        removed, problem = cc_alerts.clear(cfg)
+        if problem:
+            say(T("Problem: {why}", why=problem))
+            return FAILED
+        cc_store.update_config(alerts=False)
+        say(T("Phone alerts are off; {n} event(s) were removed from the calendar \"{name}\". The calendar itself "
+              "is left for you to delete.", n=removed, name=cc_alerts.CALENDAR))
+        return OK
+    if args.action != "on" and not cfg.get("alerts"):
+        say(T("Phone alerts are off."), T("Switch them on with: coach.py alerts on"))
+        return OK
+    payload, banner, code = refresh(cfg, args.force, args.offline)
+    if payload is None:
+        return no_data(banner, code)
+    if banner:
+        say(warning(banner))
+    view = cc_deadlines.build_view(payload, cfg)
+    if args.action == "show":
+        events = list(cc_alerts.wanted(view, cfg).values())
+    else:
+        if args.action == "on":             # start clean, so running it again rebuilds every event (after the
+            _, problem = cc_alerts.clear(cfg)   # calendar was moved to another account, or deleted by hand)
+            if problem:
+                say(T("Problem: {why}", why=problem))
+                return FAILED
+        result = cc_alerts.sync(cfg, view)
+        if result["error"]:
+            say(T("Problem: {why}", why=result["error"]))
+            return FAILED
+        events = result["events"]
+        if args.action == "on":
+            cc_store.update_config(alerts=True)
+            say(T("Phone alerts are on. They are events in the calendar \"{name}\" and are brought up to date with "
+                  "every briefing.", name=cc_alerts.CALENDAR),
+                T("Check once in the Calendar app that \"{name}\" is listed under iCloud (not \"On My Mac\"): "
+                  "only then does it reach your phone.", name=cc_alerts.CALENDAR),
+                T("If it is under \"On My Mac\": delete that calendar, make a new one with exactly the same name under "
+                  "iCloud (File > New Calendar > iCloud), then run this command again."))
+        say(cc_alerts.summary(result) or T("Phone alerts: nothing to change."))
+    cfg = cc_store.load_config()
+    say(T("Work that rings in the next {days} days (exams, and work worth {percent}% of the grade or more):",
+          days=cfg["alert_days"], percent=cfg["alert_min_percent"]),
+        *(cc_alerts.lines(events, cfg) or ["  " + T("nothing")]),
+        T("Data collected {when}.", when=data_age(payload, cfg)))
+    if code == NEED_LOGIN:
+        say(login_hint())
+    return code

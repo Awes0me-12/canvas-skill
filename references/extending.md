@@ -41,6 +41,7 @@ Features (each is a logic module plus a small command file):
 | Grades | `cc_grades.py` | `cc_cmd_grades.py` (`grades`) | `Grades.html` |
 | Feedback, assignment details | `cc_feedback.py` | `cc_cmd_feedback.py` (`feedback`, `show`) | saved `.md` per assignment |
 | Calendar file and feed | `cc_ical.py` | `cc_cmd_calendar.py` (`export`, `feed`) | `Canvas deadlines.ics` |
+| Phone alerts | `cc_alerts.py` | `cc_cmd_calendar.py` (`alerts`); kept in step by `brief` | events in the calendar "Canvas Coach" |
 | Course materials | `cc_materials.py` | `cc_cmd_materials.py` (`materials`) | saved `.md` pages, downloaded files |
 
 Design rules worth keeping:
@@ -232,7 +233,8 @@ Another language: copy `cc_lang_zh.py` to `cc_lang_<code>.py`, translate, and ad
  "overrides": {"101:1014": {"due": "...", "canvas_due": null, "note": "...", "source": "...", "confirmed": true}},
  "questions": [{"id": "q1", "text": "...", "course": "", "course_id": "", "item": "", "asked": "...", "answered": null, "answer": ""}],
  "plan": {"days": {"2026-10-12": {"must": "101:1005", "title": "..."}}, "rest": {"2026-W42": "2026-10-17"}},
- "baseline": "20261012T083400.json",
+ "alerts": {"101:1008": {"uid": "<the event's id in the Calendar app>", "sig": "<start|end|alarms|title>"}},
+ "baseline": "20261012T083400.json", "brief_baseline": "20261013T080100.json",
  "change_log": [{"at": "...", "text": "Due date changed: ..."}]}
 ```
 
@@ -243,8 +245,14 @@ out. `plan.days` is each day's must-do (it stays the same all day, and an undone
 over); `plan.rest` is the rest day chosen per calendar week. A tick on `mod:<course>:<module>` marks
 a week's module reading as done.
 
+`alerts` lists the calendar events made by `cc_alerts.py`, by item key. An event is replaced when its
+`sig` no longer matches (the date moved) and deleted when its item is done or past; no other event
+in the student's calendar is ever touched.
+
 `baseline` is the snapshot the student last looked at; `deadlines`, `week` and `changes` move it
-forward, `brief` and `plan` do not. It is protected from pruning.
+forward, `brief` and `plan` do not. `brief_baseline` is the briefing's own mark: every briefing
+reports the changes since the one before, once, and only those that call for doing something
+(`cc_changes.ACT_KINDS`, plus new graded work that has a date). Both are protected from pruning.
 
 ## How the plan is made (`cc_plan.py`)
 
@@ -253,11 +261,12 @@ put on days by `_assign`, at most one must-do per day:
 
 | Order | Task | Day | Can it move? |
 |---|---|---|---|
-| 1 | overdue and still open | today | no |
-| 2 | an earlier day's must-do, still open | today | no |
-| 3 | due today; the last review before an exam | that day | no |
+| 1 | due today; the last review before an exam (of several, the heaviest, then the shortest opening) | that day | no |
+| 2 | overdue and still open (it can still be handed in tomorrow; what is due today cannot) | today | no |
+| 3 | an earlier day's must-do, still open | today | no |
 | 4 | graded work | the day before it is due; two days before when its group is 10%+ or it is in a clash | to an earlier free day, not before it opens |
-| 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam | no |
+| 4 | earlier sessions on big work (5%+ of the grade by itself) | 7 and 4 days before it is due, once it is open | no |
+| 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam, and days 5 and 7 when it is 20%+ of the grade | no |
 | 6 | the week's module | the day before the course's first class of the teaching week | no |
 | | not counted in the grade; "check the outside site" | its day | listed beside the must-do |
 
@@ -320,6 +329,19 @@ Things that were tried and did not work, so do not repeat them:
 - Keeping the data folder in Documents: macOS makes a background job wait on a permission prompt
   before it may read Documents, Desktop or Downloads. The default is `~/CanvasCoach`, and
   `schedule install` refuses a data folder in those places.
+- Ranking a carried-over must-do above work due today: a homework due three days later stayed the
+  headline on the one day a quiz was open, and the quiz was missed. What is due today leads.
+- Alarms for every Canvas "quiz": a four-point survey is a quiz to Canvas too. What rings is decided
+  by weight (and exams), not by the kind of item.
+- Writing a date into AppleScript as text: it is read by the Mac's language setting. `cc_alerts.py`
+  passes numbers and builds the date there.
+- Deciding "big" from a share of the points posted so far: in a course without group weights every
+  weekly homework looked like 13% of the grade. `cc_plan._stated` only trusts the student's own
+  figure or a share of a weighted group.
+- A briefing that repeats every change until the student opens the full list: after ten days it
+  carried 42 lines, most of them "now shows as handed in", and the one that mattered was not read.
+- Listing every undated item: thirteen one-point attendance columns hid the one undated essay.
+  Undated items worth 1% or less each are counted in a note (`cc_deadlines._small_placeholder`).
 - A launchd job with `ProcessType` "Background": the hidden browser then takes about 25 seconds
   to start and the collection times out. The job uses "Interactive".
 
@@ -352,8 +374,10 @@ settings folder also gets its own browser session, so the real login cannot be t
 pagination, cookie login, the two different 401 answers, a closed Files area, long modules whose
 items are left out, and the calendar link. `CANVAS_COACH_NOW` pins the clock, `CANVAS_COACH_HOME`
 moves the settings folder, `CANVAS_COACH_ROOT` the data folder, `CANVAS_COACH_LAUNCH_DIR` the
-schedule file, and `CANVAS_COACH_SESSION` gives tests their own browser session, so tests never
-touch the real settings, data, schedule or saved login.
+schedule file, `CANVAS_COACH_SESSION` gives tests their own browser session, and
+`CANVAS_COACH_ALERTS_LOG` names a file that calendar changes are written to instead of reaching the
+Calendar app (`fail` makes them fail), so tests never touch the real settings, data, schedule,
+saved login or calendar.
 
 The mock is not Canvas. When something looks wrong against the real site, save the snapshot and
 add its shape as a test.
