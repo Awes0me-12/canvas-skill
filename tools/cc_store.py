@@ -252,9 +252,10 @@ def save_snapshot(cfg, payload):
         n += 1
         path = raw_dir(cfg) / f"{stamp}_{n:02d}.json"
     write_json(path, payload)
-    baseline = (load_state(cfg) or {}).get("baseline")     # change detection still needs this one
+    state = load_state(cfg) or {}                           # change detection still needs these two
+    keep = {state.get("baseline"), state.get("brief_baseline")}
     for old in list_snapshots(cfg)[:-KEEP_SNAPSHOTS]:
-        if old.name != baseline:
+        if old.name not in keep:
             old.unlink()
     return path
 

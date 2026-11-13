@@ -318,8 +318,11 @@ class PlanTests(Case):
         self.assertNotIn("101:1011#review3", keys(self.plan()))
         self.assertFalse(self.item(self.view(), "101:1011")["done"])
         self.assertIn("101:1011#review2", keys(self.plan(at=NOW + timedelta(days=1))))
-        text = cc_plan.render_text(self.plan(), keys=True)
+        heavier = make_payload()                                   # an undated reflection that counts for something
+        next(a for a in heavier["data"]["101"]["assignments"] if a["id"] == 1014)["points_possible"] = 50
+        text = cc_plan.render_text(self.plan(heavier), keys=True)
         self.assertIn("1 open item(s) have no date on Canvas, so they are not on this plan: CS 101 · Reflection (no date).", text)
+        self.assertNotIn("have no date on Canvas", cc_plan.render_text(self.plan()), "a placeholder under 1% is not named")
         run_cli(self.env, "setup", "--host", HOST)
         cc_store.save_snapshot(self.cfg, make_payload())
         code, out = run_cli(self.env, "done", "101:1011#review2")

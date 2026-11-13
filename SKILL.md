@@ -125,7 +125,7 @@ The lines the rules below refer to look like this in each language:
 | Remind me to ask the TA about X | `coach ask <question> [--course <words>] [--about <item>]` | `coach questions` lists them; offer to draft the message, the student sends it; then `coach answer q1 <what they said>` |
 | What have I told you? | `coach marks` | Own deadlines, own dates and notes, ticks, open questions |
 | Put my deadlines in my calendar | `coach export [--alarm 24]` | Tell them the file path; add `--open` only if they want it opened now |
-| Give me the short version | `coach brief` | It leads with today's must-do |
+| Give me the short version | `coach brief` | It leads with today's must-do. It reports a change once, and only moved dates, new graded work, new grades and hidden text; `coach changes` has the full list |
 | Remind me every morning | ask for a time, then `coach schedule install --time 08:00` | Rule 9. `coach schedule remove` stops it |
 | Make my phone ring before the big ones | ask first, then `coach alerts on` | Rule 9. macOS asks once for permission: the student clicks Allow. Tell them to check that the calendar "Canvas Coach" is under iCloud. Read out what will ring. `coach alerts off` removes the events |
 | I just handed that in, stop the alarm | `coach alerts sync --force` | Its event is removed once Canvas shows the hand-in |
@@ -133,7 +133,9 @@ The lines the rules below refer to look like this in each language:
 
 Lists start with a `CHANGED on Canvas since ...` block when something moved since the student last
 looked, and a `CLASHES in the next ... days` block when deadlines from two or more courses fall
-within 48 hours of each other. Always read those blocks out before the list. Items can be referred
+within 48 hours of each other. Always read those blocks out before the list. Undated Canvas items worth 1% of the grade or less
+each (an attendance column per class) are counted in one note at the end, not listed; `--all` lists
+them. Items can be referred
 to by a few words of their course and title, or by key; `coach deadlines --all --keys` and
 `coach plan --keys` print the keys.
 

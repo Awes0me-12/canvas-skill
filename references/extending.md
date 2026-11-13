@@ -234,7 +234,7 @@ Another language: copy `cc_lang_zh.py` to `cc_lang_<code>.py`, translate, and ad
  "questions": [{"id": "q1", "text": "...", "course": "", "course_id": "", "item": "", "asked": "...", "answered": null, "answer": ""}],
  "plan": {"days": {"2026-10-12": {"must": "101:1005", "title": "..."}}, "rest": {"2026-W42": "2026-10-17"}},
  "alerts": {"101:1008": {"uid": "<the event's id in the Calendar app>", "sig": "<start|end|alarms|title>"}},
- "baseline": "20261012T083400.json",
+ "baseline": "20261012T083400.json", "brief_baseline": "20261013T080100.json",
  "change_log": [{"at": "...", "text": "Due date changed: ..."}]}
 ```
 
@@ -250,7 +250,9 @@ a week's module reading as done.
 in the student's calendar is ever touched.
 
 `baseline` is the snapshot the student last looked at; `deadlines`, `week` and `changes` move it
-forward, `brief` and `plan` do not. It is protected from pruning.
+forward, `brief` and `plan` do not. `brief_baseline` is the briefing's own mark: every briefing
+reports the changes since the one before, once, and only those that call for doing something
+(`cc_changes.ACT_KINDS`, plus new graded work that has a date). Both are protected from pruning.
 
 ## How the plan is made (`cc_plan.py`)
 
@@ -336,6 +338,10 @@ Things that were tried and did not work, so do not repeat them:
 - Deciding "big" from a share of the points posted so far: in a course without group weights every
   weekly homework looked like 13% of the grade. `cc_plan._stated` only trusts the student's own
   figure or a share of a weighted group.
+- A briefing that repeats every change until the student opens the full list: after ten days it
+  carried 42 lines, most of them "now shows as handed in", and the one that mattered was not read.
+- Listing every undated item: thirteen one-point attendance columns hid the one undated essay.
+  Undated items worth 1% or less each are counted in a note (`cc_deadlines._small_placeholder`).
 - A launchd job with `ProcessType` "Background": the hidden browser then takes about 25 seconds
   to start and the collection times out. The job uses "Interactive".
 

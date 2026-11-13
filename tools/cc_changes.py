@@ -2,7 +2,11 @@
 
 "Since when" is the baseline: the snapshot the student last looked at. Looking at the list
 (deadlines, week, changes) moves the baseline forward; the background briefing does not, so
-nothing it reports is lost before the student has seen it.
+`coach.py changes` still shows everything the student has not looked at.
+
+The briefing keeps a mark of its own (state.json, "brief_baseline"): it reports each change once,
+and only the kinds that call for doing something (ACT_KINDS). A list that repeats forty lines every
+morning, most of them "now shows as handed in", teaches the student to stop reading it.
 """
 from datetime import timedelta
 
@@ -14,6 +18,9 @@ import cc_time
 from cc_lang import T
 
 LOG_LIMIT = 100
+# What the briefing passes on: a date moved, work has to be redone, a grade came in, hidden text
+# appeared, or new graded work with a date was posted (decided per change, see diff()).
+ACT_KINDS = ("due", "closes", "reopened", "graded", "hidden")
 
 
 def _stamp(when, tz):
@@ -54,7 +61,8 @@ def _left_out(item, cutoff):
 def diff(old, new, cfg, at=None):
     """Changes from snapshot `old` to snapshot `new`, most important first.
 
-    Each is {"kind", "course", "text", "url", "key"}. Only courses shown now are compared, and
+    Each is {"kind", "course", "text", "url", "key", "act"}; `act` marks the ones that call for doing
+    something, which is all the briefing reports. Only courses shown now are compared, and
     a resource is only compared where both snapshots have it, so a first collection of
     something new is never reported as "everything changed".
     """
@@ -62,8 +70,9 @@ def diff(old, new, cfg, at=None):
     tz = cc_time.zone(cfg)
     out = []
 
-    def add(kind, course, text, url="", key=""):
-        out.append({"kind": kind, "course": course, "text": text, "url": url, "key": key})
+    def add(kind, course, text, url="", key="", act=None):
+        out.append({"kind": kind, "course": course, "text": text, "url": url, "key": key,
+                    "act": kind in ACT_KINDS if act is None else act})
 
     before = {i["key"]: i for i in cc_model.items(old, cfg, at)}
     after = {i["key"]: i for i in cc_model.items(new, cfg, at)}
@@ -88,7 +97,8 @@ def diff(old, new, cfg, at=None):
         if was is None:
             if not _left_out(it, old_cut):
                 add("new", it["course"], T("New: {name}, due {when}", name=name, when=_stamp(it["due"], tz)) if it["due"]
-                    else T("New: {name}, no due date", name=name), it["url"], key)
+                    else T("New: {name}, no due date", name=name), it["url"], key,
+                    act=bool(it["due"]) and it["weight"] != 0 and not (it["course_weighted"] and it["group_weight"] == 0))
             continue
         if was["due"] != it["due"]:
             text = T("Due date changed: {name}: was {old}, now {new}", name=name, old=_stamp(was["due"], tz),
@@ -231,6 +241,28 @@ def since_baseline(cfg, payload, advance=True):
                 log = state.get("change_log") if isinstance(state.get("change_log"), list) else []
                 now = cc_time.now().strftime("%Y-%m-%dT%H:%M:%SZ")
                 state["change_log"] = (log + [{"at": now, "text": c["text"]} for c in changes])[-LOG_LIMIT:]
+            cc_state.save(cfg, state)
+    return changes, since
+
+
+def since_briefing(cfg, payload):
+    """(changes that call for doing something, "since <time>" text) since the last briefing.
+
+    Each change is reported once: the briefing's own mark moves on every time. The student's baseline
+    is left alone, so `coach.py changes` still lists everything since they last looked themselves.
+    """
+    with cc_store.state_lock(cfg):
+        state = cc_state.load(cfg)
+        _, newest = cc_store.latest_snapshot(cfg)
+        old, old_path = _baseline(cfg, {"baseline": state.get("brief_baseline") or state.get("baseline")})
+        changes, since = [], ""
+        if old is not None and newest is not None:
+            when = cc_time.parse_iso(old.get("collected_at"))
+            since = cc_time.stamp(cc_time.local(when, cc_time.zone(cfg))) if when else ""
+            if old_path != newest:
+                changes = [c for c in diff(old, payload, cfg) if c["act"]]
+        if newest is not None and state.get("brief_baseline") != newest.name and _safe_to_move(old, payload, cfg):
+            state["brief_baseline"] = newest.name
             cc_state.save(cfg, state)
     return changes, since
 

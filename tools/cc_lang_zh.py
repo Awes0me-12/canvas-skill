@@ -776,6 +776,9 @@ TABLE = {
     "{n} open item(s) have no date on Canvas, so they are not on this plan: {names}{more}. "
     "If you know a date: coach.py edit <key> --due \"2026-10-20 17:00\"":
         "有{n}项未完成的作业在 Canvas 上没有日期，所以不在这份计划里：{names}{more}。如果你知道日期：coach.py edit <key> --due \"2026-10-20 17:00\"",
+    "{n} item(s) without a date that count for {percent}% of the grade or less each (attendance and the like) "
+    "are not listed. Add --all to see them.":
+        "有{n}个没有日期、单项不超过总成绩{percent}%的项目（考勤之类）没有列出。加上 --all 可以看到。",
     "Work on {name}": "推进：{name}",
     "due in {n} days ({when}); it is worth {worth}, so it gets more than one day":
         "{n}天后截止（{when}）；它分量较重（{worth}），所以不止安排一天",

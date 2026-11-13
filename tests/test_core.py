@@ -306,19 +306,28 @@ class BriefTests(Case):
         self.assertIsNone(cc_brief.notification(b))
         self.assertIn("Nothing is due in the next 24 hours", cc_brief.render_text(b))
 
-    def test_command_never_marks_changes_as_seen(self):
+    def test_command_reports_each_change_once_and_only_what_calls_for_action(self):
         run_cli(self.env, "setup", "--host", HOST)
         old = make_payload()
         old["collected_at"] = sample_data.iso(NOW - timedelta(hours=6))
         cc_store.save_snapshot(self.cfg, old)
         run_cli(self.env, "deadlines", "--offline")
         new = make_payload()
-        new["data"]["202"]["assignments"][1]["due_at"] = sample_data.iso(NOW + timedelta(days=3))
+        rows = new["data"]["202"]["assignments"]
+        rows[1]["due_at"] = sample_data.iso(NOW + timedelta(days=3))
+        rows.append(dict(rows[1], id=2999, name="Attendance week 3", due_at=None, points_possible=1,
+                         html_url=f"{HOST}/courses/202/assignments/2999"))
         cc_store.save_snapshot(self.cfg, Case.resign(new))
-        for _ in range(2):
-            code, out = run_cli(self.env, "brief", "--offline")
-            self.assertEqual(code, 0, out)
-            self.assertIn("CHANGED on Canvas", out)
+        code, out = run_cli(self.env, "brief", "--offline")
+        self.assertEqual(code, 0, out)
+        self.assertIn("CHANGED on Canvas since Mon Oct 12, 6:00 AM (1)\n  * Due date changed: MATH 202", out)
+        self.assertNotIn("Attendance week 3", out, "a new placeholder without a date is not worth a briefing line")
+        code, out = run_cli(self.env, "brief", "--offline")        # the next briefing: it has been said once
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("CHANGED on Canvas", out)
+        code, out = run_cli(self.env, "changes", "--offline")      # the student's own list still holds everything
+        self.assertIn("Due date changed: MATH 202", out)
+        self.assertIn("New: MATH 202 · Attendance week 3, no due date", out)
         self.assertEqual(run_cli(self.env, "brief", "--offline", "--hours", "0")[0], 1)
 
 
