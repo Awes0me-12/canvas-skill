@@ -115,7 +115,8 @@ class Case(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.env = {"CANVAS_COACH_HOME": str(self.tmp / "home"), "CANVAS_COACH_NOW": sample_data.iso(NOW),
                     "CANVAS_COACH_ROOT": str(self.tmp / "data folder"),   # never the real data folder
-                    "CANVAS_COACH_SESSION": f"cc-test-{os.getpid()}"}     # nor the real saved login
+                    "CANVAS_COACH_SESSION": f"cc-test-{os.getpid()}",     # nor the real saved login
+                    "CANVAS_COACH_ALERTS_LOG": str(self.tmp / "alerts.log")}  # nor the real Calendar app
         self._old = {k: os.environ.get(k) for k in self.env}
         os.environ.update(self.env)
         self.addCleanup(self._restore_env)
@@ -164,6 +165,7 @@ def run_cli(env, *args, stdin=None):
     """Run coach.py as a user would. Returns (exit code, everything it printed)."""
     full = dict(os.environ, **env, CANVAS_COACH_AGENT_BROWSER="/nonexistent/agent-browser")
     full.setdefault("CANVAS_COACH_SESSION", f"cc-test-{os.getpid()}")   # a test must never reach the real saved login
+    full.setdefault("CANVAS_COACH_ALERTS_LOG", os.devnull)               # nor the real Calendar app
     p = subprocess.run([sys.executable, str(TOOLS / "coach.py"), *args], capture_output=True, text=True,
                        input=stdin, env=full)
     return p.returncode, p.stdout + p.stderr

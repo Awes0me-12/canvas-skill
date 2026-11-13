@@ -46,13 +46,16 @@ DEFAULTS = {
     "clash_days": 21,              # how far ahead clashes are looked for
     "clash_min_percent": 1,        # an item counts towards a clash when it is worth at least this share of the grade
     "plan_days": 7,                # how many days the study plan covers
+    "alerts": False,               # write the deadlines that matter into the calendar "Canvas Coach", with alarms
+    "alert_min_percent": 2,        # work gets an alarm when it is worth at least this share of the grade (exams always)
+    "alert_days": 7,               # how far ahead events are written
 }
-BOOL_KEYS = ("inbox",)
+BOOL_KEYS = ("inbox", "alerts")
 SECRET_KEYS = ("calendar_feed",)
 LIST_KEYS = ("ignore_courses", "include_courses", "rest_days")
 INT_KEYS = {"fresh_minutes": (1, 1440), "horizon_days": (1, 366), "overdue_days": (1, 3660),
             "collect_timeout": (20, 900), "clash_hours": (1, 336), "clash_days": (1, 120), "plan_days": (1, 28),
-            "clash_min_percent": (0, 100)}
+            "clash_min_percent": (0, 100), "alert_min_percent": (0, 100), "alert_days": (1, 60)}
 CHOICES = {"collector": ("browser", "bridge"), "language": cc_lang.SUPPORTED}
 
 

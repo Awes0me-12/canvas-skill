@@ -77,6 +77,14 @@ def _brief(cfg, args):
             say(T("Notification shown.") if shown else T("Notification could not be shown on this computer."))
         else:
             say(T("Nothing urgent, so no notification was shown."))
+    if cfg.get("alerts"):                    # keep the phone's alarms in step; a calendar problem must not fail the briefing
+        try:
+            import cc_alerts
+            line = cc_alerts.summary(cc_alerts.sync(cfg, brief["view"]))
+            if line:
+                say(line)
+        except Exception:
+            pass
     return code
 
 
