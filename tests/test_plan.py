@@ -196,6 +196,42 @@ class PlanTests(Case):
         must = cc_plan.todays_must(make_payload(), self.cfg, at=thursday)
         self.assertEqual((must["key"], must["short"]), ("303:3003", "Discussion: week 7 (WRIT 150)"))
 
+    def _with_quiz(self, **first):
+        """One assignment (id 1) plus a quiz (id 2) that is open only on Thursday, 8:00 to 17:00."""
+        payload, row = self.one(**first)
+        quiz = dict(row, id=2, name="Quiz", html_url=f"{HOST}/courses/101/assignments/2", is_quiz_assignment=True,
+                    unlock_at=sample_data.iso(NOW + timedelta(days=3, hours=-4)),
+                    due_at=sample_data.iso(NOW + timedelta(days=3, hours=5)))
+        payload["data"]["101"]["assignments"].append(quiz)
+        return Case.resign(payload)
+
+    def test_work_due_today_leads_over_what_is_carried_over(self):
+        # Homework due Friday is Wednesday's must-do and is left undone. On Thursday a quiz opens and
+        # closes the same day: the quiz leads, and the homework stands beside it as carried over.
+        wednesday, thursday = NOW + timedelta(days=2), NOW + timedelta(days=3)
+        payload = self._with_quiz(due=timedelta(days=4))
+        self.assertEqual(self.musts(self.plan(payload, at=wednesday))[0], "101:1")
+        day = self.plan(payload, at=thursday)["days"][0]
+        self.assertEqual((day["must"]["key"], day["must"]["kind"]), ("101:2", "today"))
+        self.assertEqual([(t["key"], t["kind"]) for t in day["also"]], [("101:1", "carried")])
+        self.assertTrue(day["also"][0]["why"].startswith("carried over from Wed Oct 14; due the next day"))
+        must = cc_plan.todays_must(payload, self.cfg, at=thursday)
+        self.assertEqual((must["key"], must["short"]), ("101:2", "Quiz (CS 101)"))
+        self.assertEqual(self.musts(self.plan(payload, at=thursday + timedelta(hours=2)))[0], "101:2", "holds all day")
+
+    def test_of_two_things_due_today_the_heavier_leads_even_when_the_other_was_carried_over(self):
+        # A one-point survey due Thursday 12:15 is Wednesday's must-do and is left undone. The quiz
+        # that is only open on Thursday is worth ten times as much, so it leads on Thursday.
+        wednesday, thursday = NOW + timedelta(days=2), NOW + timedelta(days=3)
+        payload = self._with_quiz(due=timedelta(days=3, minutes=15))
+        payload["data"]["101"]["assignments"][0]["points_possible"] = 1
+        payload = Case.resign(payload)
+        self.assertEqual(self.musts(self.plan(payload, at=wednesday))[0], "101:1")
+        day = self.plan(payload, at=thursday)["days"][0]
+        self.assertEqual(day["must"]["key"], "101:2")
+        self.assertEqual([t["key"] for t in day["also"]], ["101:1"])
+        self.assertTrue(day["also"][0]["why"].startswith("carried over from Wed Oct 14; due the same day"))
+
     def test_module_reading_goes_before_the_first_class_of_the_week(self):
         self.cfg["class_times"] = {"101": [{"days": ["wed", "fri"], "time": "10:00", "kind": "lecture"},
                                            {"days": ["thu"], "time": "14:00", "kind": "section"}],

@@ -135,10 +135,11 @@ to by a few words of their course and title, or by key; `coach deadlines --all -
 `coach plan --keys` print the keys.
 
 How the plan decides, so you can explain it: (1) overdue work that is still open goes on today;
-(2) a must-do left undone is carried over; (3) graded work goes on the day before it is due, two
-days before when its group is 10% or more of the grade or it sits in a clash, and moves to an
-earlier free day when its day is taken; (4) an exam gets a review session on each of the three days
-before it; (5) the week's module goes on the day before the course's first class of the week. One
+(2) graded work due today leads the day, and of several the one that counts for most; (3) a must-do
+left undone is carried over; (4) graded work goes on the day before it is due, two days before when
+its group is 10% or more of the grade or it sits in a clash, and moves to an earlier free day when
+its day is taken; (5) an exam gets a review session on each of the three days before it; (6) the
+week's module goes on the day before the course's first class of the week. One
 day a week from `rest_days` is kept free: the lightest one, or the one the student picks with
 `coach plan --rest sat`. A finished task is ticked with `coach done <key>` (or shows as done once
 Canvas has the hand-in); `coach plan --keys` prints the keys, and a single review, preparation or

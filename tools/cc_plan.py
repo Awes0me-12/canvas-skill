@@ -2,12 +2,14 @@
 
 Rules, in order of priority:
   1. Overdue work that is still open goes on today.
-  2. A must-do from an earlier day that is still open is carried over to today.
-  3. Graded work goes on the day before it is due; two days before when it is heavy (its group is
+  2. Graded work due today leads the day; of several, the one that counts for most, then the one
+     that is open for the shortest time.
+  3. A must-do from an earlier day that is still open is carried over to today.
+  4. Graded work goes on the day before it is due; two days before when it is heavy (its group is
      10% or more of the grade) or sits in a deadline clash. When that day is taken it moves to the
      nearest earlier free day, so the load spreads out instead of piling up.
-  4. An exam gets a review session on each of the three days before it.
-  5. This week's module material goes on the day before the course's first class of the week.
+  5. An exam gets a review session on each of the three days before it.
+  6. This week's module material goes on the day before the course's first class of the week.
 One day a week is kept free: the lightest of the candidate days in the setting `rest_days`.
 
 Nothing here estimates how long anything takes; there is no data for that. Every line says why
@@ -33,7 +35,10 @@ REVIEW_DAYS = 3             # review sessions before an exam
 REST_PREFERENCE = ("sat", "sun", "fri", "thu", "wed", "tue", "mon")     # which candidate wins a tie
 KEEP_DAYS = 21              # how long the record of past must-dos is kept
 READABLE = ("Page", "File", "ExternalUrl", "ExternalTool")              # module items that are material to go through
-PRIORITY = {"overdue": 1, "carried": 2, "today": 3, "review1": 3, "work": 4, "prep": 5, "review": 5, "material": 6,
+# What is due today comes before what was carried over: today's deadline cannot wait, the carried
+# task usually can. (The other way round, a quiz open for one day was once listed under a
+# homework that was due three days later, and was missed.)
+PRIORITY = {"overdue": 1, "today": 2, "review1": 2, "carried": 3, "work": 4, "prep": 5, "review": 5, "material": 6,
             "check": 7, "optional": 8}
 LABEL = {"overdue": N("overdue"), "carried": N("carried over"), "work": N("graded work"), "today": N("due today"),
          "prep": N("prepare"), "review": N("exam review"), "review1": N("exam review"), "material": N("class material"),
@@ -238,6 +243,13 @@ def _material_tasks(payload, cfg, view, at, tz, days, done):
 
 # ---------------------------------------------------------------- putting tasks on days
 
+def _window(item):
+    """Seconds between an item opening and its deadline; very long when Canvas gives no opening time."""
+    if not item or not item.get("unlock") or not item.get("deadline"):
+        return float("inf")
+    return max(0.0, (item["deadline"] - item["unlock"]).total_seconds())
+
+
 def _assign(tasks, days, blocked):
     """Give each day at most one must-do. Returns ({day: task}, {day: [tasks]}, how many landed on a blocked day).
 
@@ -247,8 +259,9 @@ def _assign(tasks, days, blocked):
     """
     must, also, forced = {}, {d: [] for d in days}, 0
     # Within one rule, a task that has only one possible day goes first: the others can still move.
+    # Then the one that counts for more, then the one that is open for the shortest time.
     order = sorted(tasks, key=lambda t: (PRIORITY[t["kind"]], not t["fixed"], t["day"],
-                                         -((t["item"] or {}).get("weight") or 0)))
+                                         -((t["item"] or {}).get("weight") or 0), _window(t["item"])))
     for t in order:
         t["moved"] = False
         if t["day"] not in also:
@@ -348,7 +361,7 @@ def build(payload, cfg, at=None, days=None, view=None, record=True, rest=None):
         tasks += materials
         by_key = {t["key"]: t for t in tasks}
 
-        # Rule 2: what was the must-do on an earlier day and is still open comes first today.
+        # Rule 3: what was the must-do on an earlier day and is still open comes next, after today's deadlines.
         carried = None
         for iso in sorted((d for d in memory["days"] if d < today.isoformat()), reverse=True)[:7]:
             key = memory["days"][iso]["must"]
@@ -358,7 +371,10 @@ def build(payload, cfg, at=None, days=None, view=None, record=True, rest=None):
                     was = datetime.strptime(iso, "%Y-%m-%d").date()
                 except ValueError:
                     continue
-                carried.update(kind="carried", day=today, earliest=today, fixed=True,
+                # A carried task that is itself due today keeps its "due today" rank, so it is weighed
+                # against the day's other deadlines instead of standing behind or ahead of them all.
+                carried.update(kind=carried["kind"] if carried["kind"] in ("today", "review1") else "carried",
+                               day=today, earliest=today, fixed=True,
                                why=T("carried over from {day}", day=cc_time.day(at_local.replace(
                                    year=was.year, month=was.month, day=was.day))) + (T("; ") + carried["why"] if carried["why"] else ""))
                 break

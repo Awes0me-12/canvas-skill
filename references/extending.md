@@ -254,8 +254,8 @@ put on days by `_assign`, at most one must-do per day:
 | Order | Task | Day | Can it move? |
 |---|---|---|---|
 | 1 | overdue and still open | today | no |
-| 2 | an earlier day's must-do, still open | today | no |
-| 3 | due today; the last review before an exam | that day | no |
+| 2 | due today; the last review before an exam (of several, the heaviest, then the shortest opening) | that day | no |
+| 3 | an earlier day's must-do, still open | today | no |
 | 4 | graded work | the day before it is due; two days before when its group is 10%+ or it is in a clash | to an earlier free day, not before it opens |
 | 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam | no |
 | 6 | the week's module | the day before the course's first class of the teaching week | no |
@@ -320,6 +320,8 @@ Things that were tried and did not work, so do not repeat them:
 - Keeping the data folder in Documents: macOS makes a background job wait on a permission prompt
   before it may read Documents, Desktop or Downloads. The default is `~/CanvasCoach`, and
   `schedule install` refuses a data folder in those places.
+- Ranking a carried-over must-do above work due today: a homework due three days later stayed the
+  headline on the one day a quiz was open, and the quiz was missed. What is due today leads.
 - A launchd job with `ProcessType` "Background": the hidden browser then takes about 25 seconds
   to start and the collection times out. The job uses "Interactive".
 
