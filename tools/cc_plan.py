@@ -8,7 +8,9 @@ Rules, in order of priority:
   4. Graded work goes on the day before it is due; two days before when it is heavy (its group is
      10% or more of the grade) or sits in a deadline clash. When that day is taken it moves to the
      nearest earlier free day, so the load spreads out instead of piling up.
-  5. An exam gets a review session on each of the three days before it.
+  5. An exam gets a review session on each of the three days before it; one that is worth 20% of
+     the grade or more gets five, spread over the week before it. Work that is worth 5% or more by
+     itself (an essay, a project) gets two earlier sessions as well, seven and four days ahead.
   6. This week's module material goes on the day before the course's first class of the week.
 One day a week is kept free: the lightest of the candidate days in the setting `rest_days`.
 
@@ -31,7 +33,12 @@ import cc_week
 from cc_lang import N, T
 
 HEAVY_PERCENT = 10          # a group worth this much of the grade gets an extra day
-REVIEW_DAYS = 3             # review sessions before an exam
+REVIEW_DAYS = (1, 2, 3)     # review sessions before an exam: this many days ahead
+BIG_EXAM_PERCENT = 20       # an exam worth this much by itself is reviewed over a whole week
+LONG_REVIEW_DAYS = (1, 2, 3, 5, 7)
+BIG_WORK_PERCENT = 5        # work worth this much by itself gets more than one day
+WORK_DAYS = (7, 4)          # its earlier sessions, this many days ahead of the deadline
+LEAD_DAYS = 7               # the furthest ahead any of the above reaches
 REST_PREFERENCE = ("sat", "sun", "fri", "thu", "wed", "tue", "mon")     # which candidate wins a tie
 KEEP_DAYS = 21              # how long the record of past must-dos is kept
 READABLE = ("Page", "File", "ExternalUrl", "ExternalTool")              # module items that are material to go through
@@ -131,6 +138,14 @@ def _heavy(it):
     return (it["weight"] or 0) >= HEAVY_PERCENT
 
 
+def _stated(it):
+    """What one item is worth by itself, when that is known and not a guess: the student's own figure,
+    or its share of a weighted group. A share of the points posted so far says little early in a term."""
+    if it["own_weight"] is not None:
+        return it["own_weight"]
+    return (it["weight"] or 0) if it["course_weighted"] else 0
+
+
 def _task(kind, day, item=None, **fields):
     task = {"kind": kind, "day": day, "earliest": day, "fixed": True, "item": item,
             "key": item["key"] if item else "", "course": item["course"] if item else "",
@@ -158,11 +173,11 @@ def _item_tasks(view, at_local, tz, last_day, ticked=()):
             tasks.append(_task("overdue", today, it, why=T("was due {when} and can still be handed in", when=it["due_text"])))
     for it in by["week"] + by["later"]:
         due = cc_time.local(it["deadline"], tz)
-        if it["done"] or it["status"] in ("missed", "closed") or due.date() > last_day + timedelta(days=REVIEW_DAYS):
+        if it["done"] or it["status"] in ("missed", "closed") or due.date() > last_day + timedelta(days=LEAD_DAYS):
             continue
         if it["exam"]:
             ahead = (due.date() - today).days
-            for n in range(1, REVIEW_DAYS + 1):
+            for n in LONG_REVIEW_DAYS if _stated(it) >= BIG_EXAM_PERCENT else REVIEW_DAYS:
                 day = due.date() - timedelta(days=n)
                 if today <= day <= last_day:
                     left = (due.date() - day).days
@@ -179,9 +194,16 @@ def _item_tasks(view, at_local, tz, last_day, ticked=()):
         opens = cc_time.local(it["unlock"], tz).date() if it["not_open"] and it["unlock"] else today
         earliest = max(today, opens)
         graded = _graded(it)
-        heavy = graded and (_heavy(it) or it["clash"])
+        big = graded and _stated(it) >= BIG_WORK_PERCENT
+        heavy = graded and (_heavy(it) or big or it["clash"])
         natural = due.date() - timedelta(days=2 if heavy else 1)
         day = min(max(natural, earliest), due.date())
+        for n in WORK_DAYS if big else ():      # big work is not left to its last two days
+            early = due.date() - timedelta(days=n)
+            if earliest <= early <= last_day and early < day and f"{it['key']}#work{n}" not in ticked:
+                tasks.append(_task("work", early, it, key=f"{it['key']}#work{n}", title=T("Work on {name}", name=it["name"]),
+                                   why=T("due in {n} days ({when}); it is worth {worth}, so it gets more than one day",
+                                         n=n, when=it["due_text"], worth=it["worth_text"]) + unsure(it)))
         if day > last_day:
             continue
         when = it["due_time"] if due.date() == day else it["due_text"]
@@ -192,7 +214,7 @@ def _item_tasks(view, at_local, tz, last_day, ticked=()):
         else:
             why = T("due {when}", when=when)
         if heavy and natural >= earliest and day != due.date():
-            why += T("; it weighs a lot ({worth}), so it starts a day early", worth=it["worth_text"]) if _heavy(it) \
+            why += T("; it weighs a lot ({worth}), so it starts a day early", worth=it["worth_text"]) if _heavy(it) or big \
                 else T("; it sits in a deadline clash, so it starts a day early")
         if it["not_open"] and opens > today:
             why += T("; it opens {when}", when=cc_time.stamp(cc_time.local(it["unlock"], tz)))

@@ -776,6 +776,10 @@ TABLE = {
     "{n} open item(s) have no date on Canvas, so they are not on this plan: {names}{more}. "
     "If you know a date: coach.py edit <key> --due \"2026-10-20 17:00\"":
         "有{n}项未完成的作业在 Canvas 上没有日期，所以不在这份计划里：{names}{more}。如果你知道日期：coach.py edit <key> --due \"2026-10-20 17:00\"",
+    "Work on {name}": "推进：{name}",
+    "due in {n} days ({when}); it is worth {worth}, so it gets more than one day":
+        "{n}天后截止（{when}）；它分量较重（{worth}），所以不止安排一天",
+
     # ---- cc_alerts.py and the alerts command in cc_cmd_calendar.py
     "Phone alerts need a Mac: they are written through its Calendar app.": "手机提醒需要 Mac：它是通过 Mac 的“日历”App 写入的。",
     "The Calendar app did not answer. If macOS is asking for permission, allow it and try again.":

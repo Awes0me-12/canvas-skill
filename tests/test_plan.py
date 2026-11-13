@@ -108,7 +108,7 @@ class PlanTests(Case):
         self.assertEqual(self.musts(p), ["101:1006", None, "303:3003", None, "101:1008", None, "202:2003"])
         self.assertEqual(p["days"][0]["must"]["kind"], "today")
         self.assertIn("due the same day, 5:00 PM", p["days"][0]["must"]["why"])
-        self.assertEqual(self.also(p, 0), ["101:1005", "202:2002"])
+        self.assertEqual(self.also(p, 0), ["101:1005", "202:2002", "303:3003#work4"])
         self.assertEqual(p["days"][0]["also"][0]["kind"], "overdue")
         # Rule 3: heavy work (its group is 30% of the grade) goes two days before its deadline.
         discussion = p["days"][2]["must"]
@@ -234,6 +234,48 @@ class PlanTests(Case):
         self.assertEqual(day["must"]["key"], "101:2")
         self.assertEqual([t["key"] for t in day["also"]], ["101:1"])
         self.assertTrue(day["also"][0]["why"].startswith("carried over from Wed Oct 14; due the same day"))
+
+    def test_big_work_gets_two_earlier_sessions(self):
+        keys = lambda p: {t["key"]: d["date"] for d in p["days"] for t in [d["must"]] + d["also"] if t}
+        # Half the points of a group that is 30% of the grade (so 15% by itself), due Wednesday next week.
+        payload, row = self.one(due=timedelta(days=9))
+        row["points_possible"] = 40
+        p = self.plan(payload, days=10)
+        self.assertEqual(keys(p), {"101:1#work7": "2026-10-14", "101:1#work4": "2026-10-17", "101:1": "2026-10-19"})
+        early = p["days"][2]["must"]
+        self.assertEqual((early["title"], early["kind"]), ("Work on Probe", "work"))
+        self.assertEqual(early["why"], "due in 7 days (Wed Oct 21, 12:00 PM); it is worth 40 pts, Homework: 30% of grade, "
+                                       "8 items so far, so it gets more than one day")
+        self.assertIn("  Must do: [graded work] CS 101 · Work on Probe — due in 7 days", cc_plan.render_text(p))
+        # A session is ticked off by its own key; the work itself stays on the plan.
+        cc_state.tick(self.cfg, "101:1#work7")
+        self.assertEqual(sorted(keys(self.plan(payload, days=10))), ["101:1", "101:1#work4"])
+        # It cannot be worked on before it opens: sessions before that day are left out.
+        cc_state.tick(self.cfg, "101:1#work7", on=False)
+        row["unlock_at"] = sample_data.iso(NOW + timedelta(days=4))
+        self.assertEqual(sorted(keys(self.plan(Case.resign(payload), days=10))), ["101:1", "101:1#work4"])
+        # Where Canvas gives no weights, a share of the points posted so far is only a guess: one day, as before.
+        payload, row = self.one(due=timedelta(days=9), cid="202")
+        self.assertEqual(list(keys(self.plan(payload, days=10))), ["202:1"])
+        # Nor does small work get them: ten points of that same group are under 5% of the grade.
+        payload, row = self.one(due=timedelta(days=9))
+        self.assertEqual(list(keys(self.plan(payload, days=10))), ["101:1"])
+
+    def test_a_heavy_exam_is_reviewed_over_the_week_before_it(self):
+        keys = lambda p: {t["key"]: d["date"] for d in p["days"] for t in [d["must"]] + d["also"] if t}
+        # The in-class midterm on Wed Oct 21 is 20% of the grade: sessions 7, 5 and 3 days ahead are in view.
+        planned = keys(self.plan())
+        self.assertEqual({k: v for k, v in planned.items() if k.startswith("101:1011")},
+                         {"101:1011#review7": "2026-10-14", "101:1011#review5": "2026-10-16", "101:1011#review3": "2026-10-18"})
+        # An exam the student added without saying what it is worth keeps the three days before it.
+        courses = cc_model.course_table(make_payload(), self.cfg, NOW)
+        cc_state.add_manual(self.cfg, courses, "math 202", "Oral exam", NOW + timedelta(days=6), kind="exam")
+        self.assertEqual(sorted(k for k in keys(self.plan()) if k.startswith("m:m1")),
+                         ["m:m1#review1", "m:m1#review2", "m:m1#review3"])
+        # Once they say it is a quarter of the grade, the sessions five days ahead and today (seven) join in.
+        cc_state.edit_manual(self.cfg, "m1", weight=25)
+        self.assertEqual(sorted(k for k in keys(self.plan()) if k.startswith("m:m1")),
+                         ["m:m1#review1", "m:m1#review2", "m:m1#review3", "m:m1#review5"])
 
     def test_module_reading_goes_before_the_first_class_of_the_week(self):
         self.cfg["class_times"] = {"101": [{"days": ["wed", "fri"], "time": "10:00", "kind": "lecture"},
@@ -369,6 +411,7 @@ class PlanTests(Case):
         quiet["courses"] = [c for c in quiet["courses"] if c["id"] == 303]
         quiet["errors"] = []
         b = cc_brief.build(Case.resign(quiet), self.cfg, at=NOW, hours=24)
+        cc_state.tick(self.cfg, "303:3003#work4")                # today's early session on the discussion is done
         b["must"] = cc_plan.todays_must(quiet, self.cfg, b["view"], at=NOW)
         self.assertIsNone(b["must"])
         self.assertIsNone(cc_brief.notification(b))

@@ -141,13 +141,15 @@ How the plan decides, so you can explain it: (1) graded work due today leads the
 work that is still open goes on today, after what is due today; (3) a must-do
 left undone is carried over; (4) graded work goes on the day before it is due, two days before when
 its group is 10% or more of the grade or it sits in a clash, and moves to an earlier free day when
-its day is taken; (5) an exam gets a review session on each of the three days before it; (6) the
+its day is taken; (5) an exam gets a review session on each of the three days before it, and one worth 20% of the
+grade or more gets five (7, 5, 3, 2 and 1 days ahead); work worth 5% or more by itself, such as an
+essay, also gets two earlier sessions, 7 and 4 days ahead; (6) the
 week's module goes on the day before the course's first class of the week. One
 day a week from `rest_days` is kept free: the lightest one, or the one the student picks with
 `coach plan --rest sat`. A finished task is ticked with `coach done <key>` (or shows as done once
-Canvas has the hand-in); `coach plan --keys` prints the keys, and a single review, preparation or
-module-reading task has a key of its own (`<item>#review2`, `mod:...`), so ticking it does not mark
-the exam itself as done. Open work that has no date on Canvas is named in a note under the plan,
+Canvas has the hand-in); `coach plan --keys` prints the keys, and a single review, preparation, early-work or
+module-reading task has a key of its own (`<item>#review2`, `<item>#work7`, `mod:...`), so ticking
+it does not mark the exam or the essay itself as done. Open work that has no date on Canvas is named in a note under the plan,
 not planned; a date not yet confirmed is marked "(?)" or "not confirmed" wherever it is used.
 
 ## Exit codes

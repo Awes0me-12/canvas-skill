@@ -263,7 +263,8 @@ put on days by `_assign`, at most one must-do per day:
 | 2 | overdue and still open (it can still be handed in tomorrow; what is due today cannot) | today | no |
 | 3 | an earlier day's must-do, still open | today | no |
 | 4 | graded work | the day before it is due; two days before when its group is 10%+ or it is in a clash | to an earlier free day, not before it opens |
-| 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam | no |
+| 4 | earlier sessions on big work (5%+ of the grade by itself) | 7 and 4 days before it is due, once it is open | no |
+| 5 | preparing for work that only opens on its due day; earlier exam reviews | the day before; days 2 and 3 before the exam, and days 5 and 7 when it is 20%+ of the grade | no |
 | 6 | the week's module | the day before the course's first class of the teaching week | no |
 | | not counted in the grade; "check the outside site" | its day | listed beside the must-do |
 
@@ -332,6 +333,9 @@ Things that were tried and did not work, so do not repeat them:
   by weight (and exams), not by the kind of item.
 - Writing a date into AppleScript as text: it is read by the Mac's language setting. `cc_alerts.py`
   passes numbers and builds the date there.
+- Deciding "big" from a share of the points posted so far: in a course without group weights every
+  weekly homework looked like 13% of the grade. `cc_plan._stated` only trusts the student's own
+  figure or a share of a weighted group.
 - A launchd job with `ProcessType` "Background": the hidden browser then takes about 25 seconds
   to start and the collection times out. The job uses "Interactive".
 
