@@ -88,6 +88,11 @@ def cmd_alerts(args):
     if args.action == "show":
         events = list(cc_alerts.wanted(view, cfg).values())
     else:
+        if args.action == "on":             # start clean, so running it again rebuilds every event (after the
+            _, problem = cc_alerts.clear(cfg)   # calendar was moved to another account, or deleted by hand)
+            if problem:
+                say(T("Problem: {why}", why=problem))
+                return FAILED
         result = cc_alerts.sync(cfg, view)
         if result["error"]:
             say(T("Problem: {why}", why=result["error"]))
@@ -98,7 +103,9 @@ def cmd_alerts(args):
             say(T("Phone alerts are on. They are events in the calendar \"{name}\" and are brought up to date with "
                   "every briefing.", name=cc_alerts.CALENDAR),
                 T("Check once in the Calendar app that \"{name}\" is listed under iCloud (not \"On My Mac\"): "
-                  "only then does it reach your phone.", name=cc_alerts.CALENDAR))
+                  "only then does it reach your phone.", name=cc_alerts.CALENDAR),
+                T("If it is under \"On My Mac\": delete that calendar, make a new one with exactly the same name under "
+                  "iCloud (File > New Calendar > iCloud), then run this command again."))
         say(cc_alerts.summary(result) or T("Phone alerts: nothing to change."))
     cfg = cc_store.load_config()
     say(T("Work that rings in the next {days} days (exams, and work worth {percent}% of the grade or more):",

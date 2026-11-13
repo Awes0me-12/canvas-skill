@@ -267,6 +267,9 @@ deadline list (no instruction text ever travels through a hand-made copy).
 - Times look wrong: `coach config set timezone America/Los_Angeles` (or `auto`).
 - The plan has no module reading for a course: its class times are not saved (`coach classes`).
 - The plan keeps the wrong rest day: `coach plan --rest fri` (or `auto` to let it choose again).
+- Phone alerts ring on the Mac but not on the phone: the calendar "Canvas Coach" was made under
+  "On My Mac". The student deletes it in the Calendar app and makes one with exactly that name under
+  iCloud (File > New Calendar > iCloud); then `coach alerts on` again, which rebuilds every event.
 - "The add-on cc_cmd_... could not be loaded": one feature file is broken; the rest still works.
   Report the message.
 - Anything else: `coach status`, and report the exact message.

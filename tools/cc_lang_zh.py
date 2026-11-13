@@ -806,6 +806,9 @@ TABLE = {
         "手机提醒已开启。它们是日历“{name}”里的事件，每次简报时都会更新。",
     "Check once in the Calendar app that \"{name}\" is listed under iCloud (not \"On My Mac\"): only then does it "
     "reach your phone.": "请在“日历”App 里确认一次：“{name}”列在 iCloud 下面（而不是“我的 Mac”），这样才会同步到手机。",
+    "If it is under \"On My Mac\": delete that calendar, make a new one with exactly the same name under "
+    "iCloud (File > New Calendar > iCloud), then run this command again.":
+        "如果它在“我的 Mac”下面：删掉这个日历，在 iCloud 下新建一个名字完全相同的日历（文件 > 新建日历 > iCloud），然后再运行一次这条命令。",
     "Phone alerts: nothing to change.": "手机提醒：没有需要改动的。",
     "Work that rings in the next {days} days (exams, and work worth {percent}% of the grade or more):":
         "未来{days}天内会提醒的作业（考试，以及单项占总成绩{percent}%或以上的作业）：",

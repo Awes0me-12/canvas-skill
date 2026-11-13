@@ -153,6 +153,12 @@ class AlertTests(Case):
         code, out = run_cli(self.env, "alerts", "show", "--offline")
         self.assertEqual((code, out.count(" — ")), (0, 3), out)
         self.assertIn("Phone alerts: nothing to change.", run_cli(self.env, "alerts", "sync", "--offline")[1])
+        # Switched on again (the calendar was moved to iCloud): the old events are deleted and all are made anew.
+        before = len(log.read_text(encoding="utf-8").splitlines())
+        code, out = run_cli(self.env, "alerts", "on", "--offline")
+        self.assertIn("Phone alerts: 3 added, 0 changed, 0 removed, 0 as before.", out)
+        again = [json.loads(line)["op"] for line in log.read_text(encoding="utf-8").splitlines()[before:]]
+        self.assertEqual(again, ["delete", "create", "create", "create"])
         code, out = run_cli(self.env, "alerts", "off")
         self.assertEqual(code, 0, out)
         self.assertIn('Phone alerts are off; 3 event(s) were removed from the calendar "Canvas Coach".', out)
